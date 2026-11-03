@@ -1,11 +1,13 @@
 # ARCaptcha Bypass Mode Demo
 
-A small Node.js sample that implements the cached-heartbeat flow:
+A small Express sample that implements the cached-heartbeat flow:
 
 1. Server periodically checks `GET https://api.arcaptcha.ir/arcaptcha/api/heartbeat` and caches its status in memory.
-2. Browser asks `/api/captcha/bootstrap` for the server's `loadWidget` decision.
-3. It inserts the widget only when `loadWidget` is `true`; otherwise no widget or token is created.
-4. Server uses the same cached status when verifying a protected action and applies the configured bypass policy if heartbeat failed.
+2. The sample is server-rendered: the server includes the widget only when its cached status is healthy.
+3. On failure, the server omits the widget and no local token is created.
+4. Server uses the same cached status to verify or apply the configured bypass policy.
+
+For client-rendered integrations, `GET /api/captcha/bootstrap` returns the server-owned `loadWidget` decision. The client should follow it; it should not call the provider heartbeat or decide based on raw status itself.
 
 The docs guide and simplified flow image are at <https://docs.arcaptcha.co/bypass-mode>.
 
@@ -42,8 +44,9 @@ The secret key remains server-side. Without credentials, a local `valid-demo-tok
 ## Simple code map
 
 - `src/heartbeat.js` — poll ARCaptcha and hold the latest heartbeat result in memory.
-- `src/server.js` — serve the page, decide `loadWidget` from cached status, and apply server-side policy.
-- `public/assets/app.js` — follow that decision and dynamically load the widget only when allowed.
+- `src/server.js` — poll/cache heartbeat, render the page using cached status, expose the CSR decision route, and apply server-side policy.
+- `src/widget-view.js` — include the widget markup and script only when the server decides loading is allowed.
+- `public/assets/app.js` — display the server-rendered status and submit the protected action.
 - `src/captcha-service.js` — validate tokens and apply the failure policy.
 - `public/index.html` — one status panel and one protected-action form; no scenario controls.
 

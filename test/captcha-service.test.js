@@ -5,6 +5,7 @@ const path = require("node:path");
 const { fallbackResult, verifyCaptcha } = require("../src/captcha-service");
 const { checkHeartbeat, createHeartbeatMonitor } = require("../src/heartbeat");
 const { readConfig } = require("../src/config");
+const { renderCaptchaSlot } = require("../src/widget-view");
 
 const liveConfig = {
   demoMode: false,
@@ -25,18 +26,44 @@ test("demo defaults simulate the ARCaptcha heartbeat failure", () => {
   assert.equal(productionConfig.initialPolicy, "fail-closed");
 });
 
-test("client page contains no widget script tag before the heartbeat gate", () => {
-  const html = fs.readFileSync(path.join(__dirname, "../public/index.html"), "utf8");
-  const app = fs.readFileSync(path.join(__dirname, "../public/assets/app.js"), "utf8");
+test("SSR omits the widget when the server heartbeat is unhealthy", () => {
+  const rendered = renderCaptchaSlot({
+    heartbeatOK: false,
+    live: true,
+    demo: true,
+    siteKey: "public-key",
+    widgetScriptUrl: "https://widget.example.test/api.js",
+  });
+  assert.equal(rendered.script, "");
+  assert.doesNotMatch(rendered.markup, /class="arcaptcha"/);
+});
+
+test("SSR renders the widget only when the server heartbeat is healthy", () => {
+  const rendered = renderCaptchaSlot({
+    heartbeatOK: true,
+    live: true,
+    demo: false,
+    siteKey: "public-key",
+    widgetScriptUrl: "https://widget.example.test/api.js",
+  });
+  assert.match(rendered.markup, /class="arcaptcha"/);
+  assert.match(rendered.script, /https:\/\/widget\.example\.test\/api\.js/);
+});
+
+test("CSR bootstrap route returns the server-owned widget-load decision", () => {
   const server = fs.readFileSync(path.join(__dirname, "../src/server.js"), "utf8");
-  assert.doesNotMatch(html, /<script[^>]+src=["']https:\/\/(?:n?widget\.)?arcaptcha\./i);
+  const app = fs.readFileSync(path.join(__dirname, "../public/assets/app.js"), "utf8");
   assert.match(server, /app\.get\("\/api\/captcha\/bootstrap"/);
   assert.match(server, /const loadWidget = status\.OK === true/);
-  assert.match(app, /fetch\(window\.DEMO_CONFIG\.captchaBootstrapUrl/);
-  assert.match(app, /decision\.loadWidget === true/);
-  const failureGate = app.indexOf("if (!loadWidget)");
-  const widgetLoad = app.indexOf("loadWidgetScript();", failureGate);
-  assert.ok(failureGate >= 0 && widgetLoad > failureGate, "browser follows the server decision before inserting the widget");
+  assert.doesNotMatch(app, /fetch\(.*arcaptcha\.ir.*heartbeat/);
+  assert.doesNotMatch(app, /createElement\("script"\)/);
+});
+
+test("HTML template does not statically load the external widget", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../public/index.html"), "utf8");
+  const server = fs.readFileSync(path.join(__dirname, "../src/server.js"), "utf8");
+  assert.doesNotMatch(html, /<script[^>]+src=["']https:\/\/(?:n?widget\.)?arcaptcha\./i);
+  assert.match(server, /renderCaptchaSlot\(\{/);
 });
 
 test("fail-closed is the default behavior for an outage", () => {

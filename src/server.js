@@ -4,6 +4,7 @@ const path = require("node:path");
 const { readConfig } = require("./config");
 const { createHeartbeatMonitor } = require("./heartbeat");
 const { verifyCaptcha } = require("./captcha-service");
+const { renderCaptchaSlot } = require("./widget-view");
 
 const config = readConfig();
 const publicDir = path.resolve(__dirname, "../public");
@@ -33,14 +34,25 @@ function inlineJson(value) {
 
 app.get("/", async (req, res, next) => {
   try {
+    const status = heartbeat.current();
+    const captcha = renderCaptchaSlot({
+      heartbeatOK: status.OK,
+      live: Boolean(config.siteKey && config.secretKey),
+      demo: config.demoMode,
+      siteKey: config.siteKey,
+      widgetScriptUrl: config.widgetScriptUrl,
+    });
+    const pageConfig = {
+      loadWidget: status.OK === true,
+      heartbeatReason: status.reason,
+      simulatedHeartbeatFailure: status.source === "simulated",
+      outagePolicy: config.initialPolicy,
+      demoMode: config.demoMode,
+    };
     const html = (await fs.readFile(path.join(publicDir, "index.html"), "utf8"))
-      .replace("__LIVE_MODE__", String(Boolean(config.siteKey && config.secretKey)))
-      .replace("__DEMO_MODE__", String(config.demoMode))
-      .replace("__SITE_KEY_JSON__", inlineJson(config.siteKey))
-      .replace("__WIDGET_SCRIPT_URL_JSON__", inlineJson(config.widgetScriptUrl))
-      .replace("__CAPTCHA_BOOTSTRAP_URL_JSON__", inlineJson("/api/captcha/bootstrap"))
-      .replace("__OUTAGE_POLICY__", config.initialPolicy)
-      .replace("__SIMULATE_HEARTBEAT_FAILURE__", String(config.simulateHeartbeatFailure));
+      .replace("__CAPTCHA_SLOT__", captcha.markup)
+      .replace("__WIDGET_SCRIPT__", captcha.script)
+      .replace("__PAGE_CONFIG__", inlineJson(pageConfig));
     res.set("Cache-Control", "no-store").type("html").send(html);
   } catch (error) {
     next(error);

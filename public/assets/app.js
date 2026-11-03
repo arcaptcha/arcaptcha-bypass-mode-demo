@@ -1,128 +1,50 @@
 const $ = (selector) => document.querySelector(selector);
-const heartbeatBadge = $("#heartbeat-badge");
-const heartbeatMessage = $("#heartbeat-message");
-const widgetStateIcon = $("#widget-state-icon");
-const widgetStateTitle = $("#widget-state-title");
-const widgetStateDetail = $("#widget-state-detail");
-const captchaSlot = $("#captcha-slot");
-const verifyForm = $("#verify-form");
-const resultCard = $("#result-card");
 
-function showHeartbeat(ok, detail, simulated = false) {
-  heartbeatBadge.className = `badge ${ok ? "badge-up" : "badge-down"}`;
-  heartbeatBadge.textContent = simulated ? "SIMULATED FAIL" : ok ? "OK" : "FAIL";
-  heartbeatMessage.textContent = detail;
-  widgetStateIcon.className = `state-icon ${ok ? "state-up" : "state-down"}`;
-  widgetStateIcon.textContent = ok ? "✓" : "×";
-  widgetStateTitle.textContent = ok ? "Heartbeat is healthy" : "Heartbeat failed — widget not loaded";
-  widgetStateDetail.textContent = ok
-    ? "The client may now insert the ARCaptcha widget script."
-    : "No ARCaptcha widget script was requested, so no challenge token was created.";
-}
+function showServerDecision() {
+  const page = window.PAGE_CONFIG;
+  const allowed = page.loadWidget;
 
-function showGateMessage(message) {
-  captchaSlot.replaceChildren();
-  const notice = document.createElement("p");
-  notice.className = "field-help";
-  notice.textContent = message;
-  captchaSlot.appendChild(notice);
-}
+  $("#policy-label").textContent = page.outagePolicy;
+  $("#heartbeat-badge").className = `badge ${allowed ? "badge-up" : "badge-down"}`;
+  $("#heartbeat-badge").textContent = page.simulatedHeartbeatFailure
+    ? "SIMULATED FAIL"
+    : allowed ? "OK" : "FAIL";
+  $("#heartbeat-message").textContent = allowed
+    ? "The server cached a healthy heartbeat and included the widget in this page."
+    : `The server cached heartbeat failure (${page.heartbeatReason}) and omitted the widget.`;
+  $("#widget-state-icon").className = `state-icon ${allowed ? "state-up" : "state-down"}`;
+  $("#widget-state-icon").textContent = allowed ? "✓" : "×";
+  $("#widget-state-title").textContent = allowed ? "Server included the widget" : "Server omitted the widget";
+  $("#widget-state-detail").textContent = allowed
+    ? "The browser displays the server-rendered CAPTCHA."
+    : "No widget script or local token was rendered.";
 
-function showDemoTokenField() {
-  captchaSlot.replaceChildren();
-  const label = document.createElement("label");
-  label.className = "field-label";
-  label.htmlFor = "demo-token";
-  label.textContent = "Demo token";
-  const input = document.createElement("input");
-  input.id = "demo-token";
-  input.className = "text-input";
-  input.value = "valid-demo-token";
-  input.autocomplete = "off";
-  const help = document.createElement("span");
-  help.className = "field-help";
-  help.textContent = "This local-only token is shown after a healthy heartbeat.";
-  captchaSlot.append(label, input, help);
-}
-
-async function getCaptchaDecision() {
-  try {
-    const response = await fetch(window.DEMO_CONFIG.captchaBootstrapUrl, { cache: "no-store" });
-    if (!response.ok) {
-      return { loadWidget: false, reason: `bootstrap-http-${response.status}` };
-    }
-    return await response.json();
-  } catch {
-    return {
-      loadWidget: false,
-      reason: "bootstrap-network-error",
-    };
+  if (page.demoMode) {
+    $("#demo-warning").hidden = false;
+    $("#demo-warning").textContent = page.simulatedHeartbeatFailure
+      ? "This run simulates heartbeat failure and uses the configured demo policy."
+      : "The server is using the live periodic heartbeat. Fail-open is for demo purposes only.";
   }
 }
 
-function loadWidgetScript() {
-  const container = document.createElement("div");
-  container.className = "arcaptcha";
-  container.setAttribute("data-site-key", window.DEMO_CONFIG.siteKey);
-  captchaSlot.replaceChildren(container);
-
-  const script = document.createElement("script");
-  script.src = window.DEMO_CONFIG.widgetScriptUrl;
-  script.async = true;
-  script.onerror = () => {
-    showGateMessage("Heartbeat passed, but the widget script failed to load. No CAPTCHA token is available.");
-  };
-  document.head.appendChild(script);
-}
-
-function showResult(result, httpStatus) {
+function showResult(result, status) {
   const allowed = result.success === true;
-  resultCard.hidden = false;
-  resultCard.className = `result-card ${allowed ? "result-allowed" : "result-blocked"}`;
+  const card = $("#result-card");
+  card.hidden = false;
+  card.className = `result-card ${allowed ? "result-allowed" : "result-blocked"}`;
   $("#result-icon").textContent = allowed ? "✓" : "×";
   $("#result-title").textContent = allowed ? "Business action allowed" : "Business action blocked";
-  $("#result-message").textContent = result.message || result.error || `Server response: ${httpStatus}`;
-  $("#result-mode").textContent = `mode=${result.mode || "unknown"} · HTTP ${httpStatus}${result.policy ? ` · policy=${result.policy}` : ""}`;
+  $("#result-message").textContent = result.message || result.error || `Server response: ${status}`;
+  $("#result-mode").textContent = `mode=${result.mode || "unknown"} · HTTP ${status}`;
 }
 
-async function start() {
-  $("#policy-label").textContent = window.DEMO_CONFIG.outagePolicy;
-  if (window.DEMO_CONFIG.demo) {
-    $("#demo-warning").hidden = false;
-    $("#demo-warning").textContent = window.DEMO_CONFIG.simulateHeartbeatFailure
-      ? "This run simulates a failed heartbeat. The widget will not load. The server applies the configured demo policy."
-      : "Live heartbeat checks are enabled. The widget loads only after an OK: true response.";
-  }
-
-  // The server owns the decision; the browser follows it and never reads raw heartbeat state.
-  const decision = await getCaptchaDecision();
-  const loadWidget = decision.loadWidget === true;
-  showHeartbeat(
-    loadWidget,
-    loadWidget
-      ? "The server reports a healthy heartbeat. The client may now load the widget."
-      : `The server reports heartbeat unavailable (${decision.reason}). The client will not load the widget.`,
-    decision.simulated === true,
-  );
-
-  if (!loadWidget) {
-    showGateMessage("The server decision is to skip CAPTCHA loading. Submit without a token to see its configured bypass policy.");
-    return;
-  }
-
-  if (window.DEMO_CONFIG.live) loadWidgetScript();
-  else if (window.DEMO_CONFIG.demo) showDemoTokenField();
-  else showGateMessage("Live verification is not configured on this server.");
-}
-
-verifyForm.addEventListener("submit", async (event) => {
+$("#verify-form").addEventListener("submit", async (event) => {
   event.preventDefault();
-  const formData = new FormData(verifyForm);
-  const token = formData.get("arcaptcha-token") || $("#demo-token")?.value || "";
-  const button = verifyForm.querySelector("button[type=submit]");
+  const token = new FormData(event.currentTarget).get("arcaptcha-token") || $("#demo-token")?.value || "";
+  const button = event.currentTarget.querySelector("button[type=submit]");
   button.disabled = true;
-  button.innerHTML = '<span class="button-spinner"></span> Checking on the server…';
-  resultCard.hidden = true;
+  button.textContent = "Checking on the server…";
+
   try {
     const response = await fetch("/api/verify", {
       method: "POST",
@@ -134,8 +56,8 @@ verifyForm.addEventListener("submit", async (event) => {
     showResult({ success: false, message: "Could not reach the demo server." }, 0);
   } finally {
     button.disabled = false;
-    button.innerHTML = 'Submit protected action <span aria-hidden="true">→</span>';
+    button.textContent = "Submit protected action →";
   }
 });
 
-start();
+showServerDecision();
