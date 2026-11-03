@@ -28,12 +28,15 @@ test("demo defaults simulate the ARCaptcha heartbeat failure", () => {
 test("client page contains no widget script tag before the heartbeat gate", () => {
   const html = fs.readFileSync(path.join(__dirname, "../public/index.html"), "utf8");
   const app = fs.readFileSync(path.join(__dirname, "../public/assets/app.js"), "utf8");
+  const server = fs.readFileSync(path.join(__dirname, "../src/server.js"), "utf8");
   assert.doesNotMatch(html, /<script[^>]+src=["']https:\/\/(?:n?widget\.)?arcaptcha\./i);
-  assert.match(app, /fetch\(window\.DEMO_CONFIG\.heartbeatStatusUrl/);
-  assert.match(app, /heartbeat\.OK === true/);
-  const failureGate = app.indexOf("if (!healthy)");
+  assert.match(server, /app\.get\("\/api\/captcha\/bootstrap"/);
+  assert.match(server, /const loadWidget = status\.OK === true/);
+  assert.match(app, /fetch\(window\.DEMO_CONFIG\.captchaBootstrapUrl/);
+  assert.match(app, /decision\.loadWidget === true/);
+  const failureGate = app.indexOf("if (!loadWidget)");
   const widgetLoad = app.indexOf("loadWidgetScript();", failureGate);
-  assert.ok(failureGate >= 0 && widgetLoad > failureGate, "widget script is inserted only after heartbeat success");
+  assert.ok(failureGate >= 0 && widgetLoad > failureGate, "browser follows the server decision before inserting the widget");
 });
 
 test("fail-closed is the default behavior for an outage", () => {

@@ -45,18 +45,17 @@ function showDemoTokenField() {
   captchaSlot.append(label, input, help);
 }
 
-async function requestHeartbeat() {
+async function getCaptchaDecision() {
   try {
-    const response = await fetch(window.DEMO_CONFIG.heartbeatStatusUrl, { cache: "no-store" });
+    const response = await fetch(window.DEMO_CONFIG.captchaBootstrapUrl, { cache: "no-store" });
     if (!response.ok) {
-      return { OK: false, source: "server", reason: `status-http-${response.status}` };
+      return { loadWidget: false, reason: `bootstrap-http-${response.status}` };
     }
     return await response.json();
-  } catch (error) {
+  } catch {
     return {
-      OK: false,
-      source: "server",
-      reason: "status-network-error",
+      loadWidget: false,
+      reason: "bootstrap-network-error",
     };
   }
 }
@@ -95,19 +94,19 @@ async function start() {
       : "Live heartbeat checks are enabled. The widget loads only after an OK: true response.";
   }
 
-  // Do not insert the ARCaptcha script until this heartbeat check succeeds.
-  const heartbeat = await requestHeartbeat();
-  const healthy = heartbeat.OK === true;
+  // The server owns the decision; the browser follows it and never reads raw heartbeat state.
+  const decision = await getCaptchaDecision();
+  const loadWidget = decision.loadWidget === true;
   showHeartbeat(
-    healthy,
-    healthy
-      ? "The server's cached ARCaptcha heartbeat is OK: true. The client-side widget gate is open."
-      : `ARCaptcha heartbeat failed (${heartbeat.reason}). The client-side widget gate stays closed.`,
-    heartbeat.source === "simulated",
+    loadWidget,
+    loadWidget
+      ? "The server reports a healthy heartbeat. The client may now load the widget."
+      : `The server reports heartbeat unavailable (${decision.reason}). The client will not load the widget.`,
+    decision.simulated === true,
   );
 
-  if (!healthy) {
-    showGateMessage("Heartbeat failed. CAPTCHA was not loaded. Submit without a token to see the server's configured bypass policy.");
+  if (!loadWidget) {
+    showGateMessage("The server decision is to skip CAPTCHA loading. Submit without a token to see its configured bypass policy.");
     return;
   }
 

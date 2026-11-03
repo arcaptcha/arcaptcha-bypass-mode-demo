@@ -12,7 +12,7 @@
         demo: __DEMO_MODE__,
         siteKey: __SITE_KEY_JSON__,
         widgetScriptUrl: __WIDGET_SCRIPT_URL_JSON__,
-        heartbeatStatusUrl: __HEARTBEAT_STATUS_URL_JSON__,
+        captchaBootstrapUrl: __CAPTCHA_BOOTSTRAP_URL_JSON__,
         outagePolicy: "__OUTAGE_POLICY__",
         simulateHeartbeatFailure: __SIMULATE_HEARTBEAT_FAILURE__
       };
@@ -35,12 +35,12 @@
       </section>
 
       <section class="flow-card">
-        <div class="card-heading"><div><div class="eyebrow">CLIENT-SIDE GATE</div><h2>ARCaptcha heartbeat</h2></div><span id="heartbeat-badge" class="badge badge-neutral">Checking…</span></div>
-        <p id="heartbeat-message" class="muted">The browser will load the widget only when the heartbeat responds with <code>OK: true</code>.</p>
+        <div class="card-heading"><div><div class="eyebrow">SERVER-DECIDED CLIENT GATE</div><h2>CAPTCHA load decision</h2></div><span id="heartbeat-badge" class="badge badge-neutral">Checking…</span></div>
+        <p id="heartbeat-message" class="muted">The server checks heartbeat and tells the browser whether to load the widget.</p>
         <div class="heartbeat-url"><span class="method">GET</span><code>https://api.arcaptcha.ir/arcaptcha/api/heartbeat</code></div>
         <div class="flow-outcome">
           <div id="widget-state-icon" class="state-icon">…</div>
-          <div><strong id="widget-state-title">Waiting for heartbeat</strong><p id="widget-state-detail">No CAPTCHA script has been requested yet.</p></div>
+          <div><strong id="widget-state-title">Waiting for server decision</strong><p id="widget-state-detail">No CAPTCHA script has been requested yet.</p></div>
         </div>
       </section>
 

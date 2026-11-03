@@ -38,7 +38,7 @@ app.get("/", async (req, res, next) => {
       .replace("__DEMO_MODE__", String(config.demoMode))
       .replace("__SITE_KEY_JSON__", inlineJson(config.siteKey))
       .replace("__WIDGET_SCRIPT_URL_JSON__", inlineJson(config.widgetScriptUrl))
-      .replace("__HEARTBEAT_STATUS_URL_JSON__", inlineJson("/api/heartbeat-status"))
+      .replace("__CAPTCHA_BOOTSTRAP_URL_JSON__", inlineJson("/api/captcha/bootstrap"))
       .replace("__OUTAGE_POLICY__", config.initialPolicy)
       .replace("__SIMULATE_HEARTBEAT_FAILURE__", String(config.simulateHeartbeatFailure));
     res.set("Cache-Control", "no-store").type("html").send(html);
@@ -47,9 +47,17 @@ app.get("/", async (req, res, next) => {
   }
 });
 
-// The client reads this cached status before loading the CAPTCHA widget.
-app.get("/api/heartbeat-status", (req, res) => {
-  res.set("Cache-Control", "no-store").json(heartbeat.current());
+// The server owns the decision; the browser only follows loadWidget.
+app.get("/api/captcha/bootstrap", (req, res) => {
+  const status = heartbeat.current();
+  const loadWidget = status.OK === true;
+  res.set("Cache-Control", "no-store").json({
+    loadWidget,
+    mode: loadWidget ? "online" : "bypass",
+    reason: loadWidget ? null : status.reason,
+    simulated: config.simulateHeartbeatFailure,
+    policy: config.initialPolicy,
+  });
 });
 
 app.post("/api/verify", async (req, res, next) => {
