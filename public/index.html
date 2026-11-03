@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#0b1324">
+    <title>ARCaptcha · Bypass mode sample</title>
+    <link rel="stylesheet" href="/assets/styles.css">
+    <script>
+      window.DEMO_CONFIG = {
+        live: __LIVE_MODE__,
+        demo: __DEMO_MODE__,
+        siteKey: __SITE_KEY_JSON__,
+        widgetScriptUrl: __WIDGET_SCRIPT_URL_JSON__,
+        heartbeatStatusUrl: __HEARTBEAT_STATUS_URL_JSON__,
+        outagePolicy: "__OUTAGE_POLICY__",
+        simulateHeartbeatFailure: __SIMULATE_HEARTBEAT_FAILURE__
+      };
+    </script>
+    <script src="/assets/app.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="ARCaptcha bypass-mode sample">
+        <span class="brand-mark">A</span><span>ARCaptcha <span class="brand-muted">/ bypass-mode sample</span></span>
+      </a>
+      <a class="guide-link" href="https://docs.arcaptcha.co/bypass-mode">Read the guide <span aria-hidden="true">↗</span></a>
+    </header>
+
+    <main class="shell">
+      <section class="hero">
+        <div class="eyebrow"><span class="pulse-dot"></span> REQUEST-TIME HEARTBEAT DEMO</div>
+        <h1>Check first.<br><span>Load CAPTCHA only when healthy.</span></h1>
+        <p class="hero-copy">This sample simulates a failed ARCaptcha heartbeat. The browser skips the widget script, then the server applies its configured outage policy to the protected action.</p>
+      </section>
+
+      <section class="flow-card">
+        <div class="card-heading"><div><div class="eyebrow">CLIENT-SIDE GATE</div><h2>ARCaptcha heartbeat</h2></div><span id="heartbeat-badge" class="badge badge-neutral">Checking…</span></div>
+        <p id="heartbeat-message" class="muted">The browser will load the widget only when the heartbeat responds with <code>OK: true</code>.</p>
+        <div class="heartbeat-url"><span class="method">GET</span><code>https://api.arcaptcha.ir/arcaptcha/api/heartbeat</code></div>
+        <div class="flow-outcome">
+          <div id="widget-state-icon" class="state-icon">…</div>
+          <div><strong id="widget-state-title">Waiting for heartbeat</strong><p id="widget-state-detail">No CAPTCHA script has been requested yet.</p></div>
+        </div>
+      </section>
+
+      <section class="action-card">
+        <div class="eyebrow">PROTECTED BUSINESS ACTION</div>
+        <h2>Continue the request</h2>
+        <p class="muted">When heartbeat fails, this form has no CAPTCHA token. The server checks heartbeat independently and applies <strong id="policy-label">__OUTAGE_POLICY__</strong>.</p>
+        <form id="verify-form">
+          <div id="captcha-slot" aria-live="polite"><p class="field-help">Waiting for heartbeat decision…</p></div>
+          <button class="button button-primary" type="submit">Submit protected action <span aria-hidden="true">→</span></button>
+        </form>
+        <div id="result-card" class="result-card" role="status" aria-live="polite" hidden>
+          <div id="result-icon" class="result-icon">✓</div>
+          <div><strong id="result-title"></strong><p id="result-message"></p><code id="result-mode"></code></div>
+        </div>
+      </section>
+
+      <aside id="demo-warning" class="warning-card" hidden><strong>Demo safety:</strong> the default mode simulates heartbeat failure and uses fail-open so the bypass path is visible. Do not use fail-open for production without a risk review. Set <code>SIMULATE_HEARTBEAT_FAILURE=false</code> to check the live heartbeat.</aside>
+    </main>
+    <footer class="footer"><span>Node.js reference sample · no framework dependencies</span><a href="https://docs.arcaptcha.co/bypass-mode">ARCaptcha Bypass Mode documentation</a></footer>
+  </body>
+</html>

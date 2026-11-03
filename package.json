@@ -1,0 +1,17 @@
+{
+  "name": "arcaptcha-bypass-mode-demo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Node.js demo of ARCaptcha availability monitoring and verification fallback policies",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.22.3"
+  }
+}
